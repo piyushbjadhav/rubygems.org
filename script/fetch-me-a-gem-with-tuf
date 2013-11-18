@@ -1,0 +1,108 @@
+#!/usr/bin/env ruby
+
+require 'pp'
+require 'open-uri'
+require 'json'
+require 'digest/md5'
+require 'digest/sha2'
+
+$host = 'http://localhost:3000'
+$cache_dir = '/tmp'
+
+# Proof-of-concept implementation of remote file fetching with TUF.
+def main
+  last_good_root = from_file('root.txt') || get_metadata('root.txt')
+
+  timestamp = get_metadata 'timestamp.txt'
+  verify! timestamp, extract_keys(last_good_root, 'timestamp')
+
+  release = get_metadata("release.txt", timestamp['signed']['meta']['release.txt'])
+  verify! release, extract_keys(last_good_root, 'release')
+
+  root = get_metadata("root.txt", release['signed']['meta']['root.txt'])
+  verify! root, extract_keys(last_good_root, "root")
+
+  store_file 'root.txt', root
+  last_good_root = root
+
+  targets = get_metadata("targets.txt", release['signed']['meta']['targets.txt'])
+  verify! targets, extract_keys(last_good_root, "targets")
+
+  gem_name = ARGV[0]
+
+  specs = unmarshal_gz(get_target("latest_specs.4.8.gz", targets))
+
+  gem = specs.detect {|x| x[0] == gem_name } || raise("Can't find gem #{gem}")
+
+  gem_path = "/gems/#{gem[0]}-#{gem[1].to_s}.gem"
+
+  get_target(gem_path, targets)
+
+  puts "Downloaded #{gem_path}"
+end
+
+def from_file(file)
+  path = File.join($cache_dir, file)
+  if File.exists?(path)
+    JSON.parse(File.read(path))
+  end
+end
+
+def store_file(path, contents)
+  File.write($cache_dir + '/' + path, contents.to_json)
+end
+
+def get_target(path, meta)
+  open($host + '/' + path).read
+end
+
+def get_metadata(path, meta = nil)
+  data = open($host + '/metadata/' + path).read
+  if meta
+    unless meta['length'] == data.length
+      raise "Incorrect length for #{path}"
+    end
+
+    meta['hashes'].each do |type, expected|
+      actual = case type
+      when 'sha256'
+        Digest::SHA2.hexdigest(data)
+      else
+        raise "Unknown hash type: #{type}"
+      end
+
+      raise "Incorrect #{type} digest for #{path}." unless expected == actual
+    end
+  end
+
+  JSON.parse(data)
+end
+
+def verify!(file, keys)
+  keys.each do |key_id, key|
+    expected = file['signatures'].detect {|x| x['keyid'] == key_id } ||
+      raise("No key found for key #{key_id}")
+
+    actual = case key['keytype']
+    when 'md5lol'
+      Digest::MD5.hexdigest(file['signed'].to_json)
+    else
+      raise "unknown keytype: #{key['keytype']}"
+    end
+    actual == expected
+  end
+end
+
+def extract_keys(root, role)
+  key_ids = root["signed"]["roles"][role]["keyids"]
+  keys = key_ids.each_with_object({}) do |key_id, keys|
+    keys[key_id] = root["signed"]["keys"][key_id]
+  end
+end
+
+def unmarshal_gz(content)
+  # ....
+  Marshal.load(Zlib::GzipReader.new(StringIO.new(content)).read)
+end
+
+main

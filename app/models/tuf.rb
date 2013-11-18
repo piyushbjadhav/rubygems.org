@@ -15,8 +15,8 @@ class Tuf
       },
     }
 
-    Dir.chdir("server") do
-      Dir['target/**/*'].each do |file|
+    Dir.chdir("server/target") do
+      Dir['**/*'].each do |file|
         unless File.directory?(file)
           hash = Digest::SHA2.file(file).hexdigest
           targets[:signed][:targets][file] = {

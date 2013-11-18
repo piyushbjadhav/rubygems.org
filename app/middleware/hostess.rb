@@ -10,9 +10,13 @@ class Hostess < Sinatra::Base
     @@local ||= false
   end
 
-  def serve
+  def serve(path = nil)
+    path ||= Pusher.server_path(request_path_info)
+
+    puts "serving #{path}"
+
     if self.class.local
-      send_file(Pusher.server_path(request.path_info))
+      send_file(path)
     else
       yield
     end
@@ -24,8 +28,8 @@ class Hostess < Sinatra::Base
     end
   end
 
-  def serve_via_cf
-    serve do
+  def serve_via_cf(path = nil)
+    serve(path) do
       redirect "http://#{$rubygems_config[:cf_domain]}#{request.path_info}"
     end
   end
@@ -77,6 +81,10 @@ class Hostess < Sinatra::Base
     else
       error 404, "This gem does not currently live at RubyGems.org."
     end
+  end
+
+  get "/metadata/*" do
+    serve_via_cf Pusher.metadata_path(params[:splat].join)
   end
 
   get "/gems/*.gem" do

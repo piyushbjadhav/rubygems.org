@@ -135,7 +135,11 @@ class Pusher
   end
 
   def self.server_path(*more)
-    File.expand_path(File.join(File.dirname(__FILE__), '..', '..', 'server', *more))
+    File.expand_path(File.join(File.dirname(__FILE__), '..', '..', 'server', 'target', *more))
+  end
+
+  def self.metadata_path(*more)
+    File.expand_path(File.join(File.dirname(__FILE__), '..', '..', 'server', 'metadata', *more))
   end
 
   def enqueue_web_hook_jobs

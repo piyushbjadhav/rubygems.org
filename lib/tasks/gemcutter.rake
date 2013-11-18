@@ -1,4 +1,8 @@
 namespace :gemcutter do
+  task generate_tuf_metadata: :environment do
+    Tuf.generate_metadata!
+  end
+
   namespace :index do
     desc "Update the index"
     task :update => :environment do

@@ -11,7 +11,7 @@ class Hostess < Sinatra::Base
   end
 
   def serve(path = nil)
-    path ||= Pusher.server_path(request_path_info)
+    path ||= Pusher.server_path(request.path_info)
 
     puts "serving #{path}"
 

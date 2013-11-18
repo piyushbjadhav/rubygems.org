@@ -33,7 +33,7 @@ class Tuf
     targets_sig = Digest::MD5.hexdigest(targets[:signed].to_json)
 
     targets[:signatures] = [{
-      keyid:  'md5lol',
+      keyid:  'abc123',
       method: 'md5lol',
       sig:    targets_sig,
     }]
@@ -71,7 +71,7 @@ class Tuf
     root_sig = Digest::MD5.hexdigest(root[:signed].to_json)
 
     root[:signatures] = [{
-      keyid:  'md5lol',
+      keyid:  'abc123',
       method: 'md5lol',
       sig:    root_sig,
     }]
@@ -106,7 +106,7 @@ class Tuf
     release_sig = Digest::MD5.hexdigest(release[:signed].to_json)
 
     release[:signatures] = [{
-      keyid:  'md5lol',
+      keyid:  'abc123',
       method: 'md5lol',
       sig:    release_sig,
     }]
@@ -140,7 +140,7 @@ class Tuf
     timestamp_sig = Digest::MD5.hexdigest(timestamp[:signed].to_json)
 
     timestamp[:signatures] = [{
-      keyid:  'md5lol',
+      keyid:  'abc123',
       method: 'md5lol',
       sig:    timestamp_sig,
     }]

@@ -2,7 +2,7 @@ require 'json'
 require 'fileutils'
 
 class Tuf
-  def self.generate_metadata!
+  def self.generate_metadata(target_files)
     FileUtils.mkdir_p("server/metadata") # TODO: Abstract this
 
     targets = {
@@ -15,18 +15,14 @@ class Tuf
       },
     }
 
-    Dir.chdir("server/target") do
-      Dir['**/*'].each do |file|
-        unless File.directory?(file)
-          hash = Digest::SHA2.file(file).hexdigest
-          targets[:signed][:targets][file] = {
-            hashes: {
-              sha256: hash
-            },
-            length: File.size(file)
-          }
-        end
-      end
+    # TODO: Get existing and append, rather than overwrite
+    target_files.each do |file, hash, length|
+      targets[:signed][:targets][file] = {
+        hashes: {
+          sha256: hash
+        },
+        length: length
+      }
     end
 
     # TODO: Actually sign with something

@@ -38,7 +38,6 @@ class Tuf
       sig:    targets_sig,
     }]
     require 'pp'
-    pp targets
 
     # TODO: where should this live?
     File.write('server/metadata/targets.txt', targets.to_json)
@@ -77,9 +76,6 @@ class Tuf
     }]
     File.write('server/metadata/root.txt', root.to_json)
 
-    pp root
-
-
     release = {
       signatures: [],
       version: 2,
@@ -113,7 +109,6 @@ class Tuf
 
     File.write('server/metadata/release.txt', release.to_json)
     require 'pp'
-    pp release
 
     timestamp = {
       signatures: [],
@@ -160,6 +155,5 @@ class Tuf
       sig:    timestamp_sig,
     }]
     File.write('server/metadata/timestamp.txt', timestamp.to_json)
-    pp timestamp
   end
 end

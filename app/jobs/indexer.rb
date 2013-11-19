@@ -62,15 +62,27 @@ class Indexer
       :key    => key_with_hash,
       :public => true
     )
+    [key, hash, data.length]
   end
 
   def update_index
-    upload("specs.4.8.gz", specs_index)
+    index_files = []
+    index_files << upload("specs.4.8.gz", specs_index)
     log "Uploaded all specs index"
-    upload("latest_specs.4.8.gz", latest_index)
+    index_files << upload("latest_specs.4.8.gz", latest_index)
     log "Uploaded latest specs index"
-    upload("prerelease_specs.4.8.gz", prerelease_index)
+    index_files << upload("prerelease_specs.4.8.gz", prerelease_index)
     log "Uploaded prerelease specs index"
+
+    # TODO: Need to keep state between runs, can't regenerate this every time.
+    existing_files = Dir.chdir("server/target") do
+      Dir['{gems/**/*,quick/**/*}'].map do |file|
+        next if File.directory?(file)
+
+        [file, Digest::SHA2.file(file).hexdigest, File.size(file)]
+      end
+    end
+    Tuf.generate_metadata(index_files + existing_files)
   end
 
   def minimize_specs(data)

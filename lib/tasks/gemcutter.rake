@@ -1,6 +1,6 @@
 namespace :gemcutter do
   task generate_tuf_metadata: :environment do
-    Tuf.generate_metadata!
+    Indexer.new.perform
   end
 
   namespace :index do

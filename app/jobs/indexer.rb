@@ -62,15 +62,19 @@ class Indexer
       :key    => key_with_hash,
       :public => true
     )
+    key_with_hash
   end
 
   def update_index
-    upload("specs.4.8.gz", specs_index)
+    index_files = []
+    index_files << upload("specs.4.8.gz", specs_index)
     log "Uploaded all specs index"
-    upload("latest_specs.4.8.gz", latest_index)
+    index_files << upload("latest_specs.4.8.gz", latest_index)
     log "Uploaded latest specs index"
-    upload("prerelease_specs.4.8.gz", prerelease_index)
+    index_files << upload("prerelease_specs.4.8.gz", prerelease_index)
     log "Uploaded prerelease specs index"
+
+    Tuf.generate_metadata('gems/**/*', 'quick/**/*', *index_files)
   end
 
   def minimize_specs(data)

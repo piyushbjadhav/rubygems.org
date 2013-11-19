@@ -11,6 +11,8 @@ $cache_dir = '/tmp'
 
 # Proof-of-concept implementation of remote file fetching with TUF.
 def main
+  # TODO: Check for expiry across all metadata files.
+
   last_good_root = from_file('root.txt') || get_metadata('root.txt')
 
   timestamp = get_metadata 'timestamp.txt'
@@ -18,6 +20,9 @@ def main
 
   release = get_metadata("release.txt", timestamp['signed']['meta'])
   verify! release, extract_keys(last_good_root, 'release')
+
+  # TODO: If our release hasn't changed from last known good, don't need to
+  # refetch root.txt and targets.txt
 
   root = get_metadata("root.txt", release['signed']['meta'])
   verify! root, extract_keys(last_good_root, "root")
@@ -34,11 +39,14 @@ def main
 
   gem = specs.detect {|x| x[0] == gem_name } || raise("Can't find gem #{gem}")
 
-  gem_path = "gems/#{gem[0]}-#{gem[1].to_s}.gem"
+  gem_with_version = "#{gem[0]}-#{gem[1]}"
+  gem_path = "gems/#{gem_with_version}.gem"
+  gemspec_path = "quick/Marshal.4.8/#{gem_with_version}.gemspec.rz"
 
+  get_target(gemspec_path, targets['signed']['targets'])
   get_target(gem_path, targets['signed']['targets'])
 
-  puts "Downloaded #{gem_path}"
+  puts "Downloaded #{gem_path} and #{gemspec_path}"
 end
 
 def from_file(file)

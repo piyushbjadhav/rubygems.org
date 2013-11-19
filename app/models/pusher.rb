@@ -135,7 +135,7 @@ class Pusher
   end
 
   def self.server_path(*more)
-    File.expand_path(File.join(File.dirname(__FILE__), '..', '..', 'server', 'target', *more))
+    File.expand_path(File.join(File.dirname(__FILE__), '..', '..', 'server', *more))
   end
 
   def self.metadata_path(*more)

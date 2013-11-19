@@ -9,6 +9,10 @@ require 'digest/sha2'
 $host = 'http://localhost:3000'
 $cache_dir = '/tmp'
 
+puts "THIS IS BROKEN"
+puts "Needs to be updated for Tuf::Metadata and friends."
+exit 1
+
 # Proof-of-concept implementation of remote file fetching with TUF.
 def main
   # TODO: Check for expiry across all metadata files.

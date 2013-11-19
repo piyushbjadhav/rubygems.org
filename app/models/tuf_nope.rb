@@ -1,7 +1,9 @@
 require 'json'
 require 'fileutils'
 
-class Tuf
+# This is old and deprecated and needs to be deleted but I'm still referring to
+# it for the moment.
+class TufNOPE
   def self.generate_metadata(target_files)
     FileUtils.mkdir_p("server/metadata") # TODO: Abstract this
 

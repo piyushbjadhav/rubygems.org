@@ -6,20 +6,33 @@ class Indexer
   end
 
   def write_gem(body, spec)
-    gem_file = directory.files.create(
-      :body   => body.string,
-      :key    => "gems/#{spec.original_name}.gem",
-      :public => true
+    gem_file = Tuf::File.from_body(
+      "gems/#{spec.original_name}.gem",
+      body.string
     )
 
     self.class.indexer.abbreviate spec
     self.class.indexer.sanitize spec
 
-    gem_spec = directory.files.create(
-      :body   => Gem.deflate(Marshal.dump(spec)),
-      :key    => "quick/Marshal.4.8/#{spec.original_name}.gemspec.rz",
-      :public => true
+    gem_spec = Tuf::File.from_body(
+      "quick/Marshal.4.8/#{spec.original_name}.gemspec.rz",
+      Gem.deflate(Marshal.dump(spec))
     )
+
+    files = [
+      gem_file,
+      gem_spec,
+    ]
+
+    files.each do |file|
+      directory.files.create(
+        :key    => file.path,
+        :body   => file.body,
+        :public => true
+      )
+    end
+
+    tuf_pending_store.add(files)
   end
 
   def directory
@@ -46,23 +59,34 @@ class Indexer
 
   def upload(key, value)
     data = stringify(value)
-    hash = Digest::SHA2.hexdigest(data)
+    file = Tuf::File.from_body(key, data)
 
     directory.files.create(
-      :body   => data,
-      :key    => key,
+      :key    => file.path,
+      :body   => file.body,
       :public => true
     )
 
-    ext = File.extname(key)
-    key_with_hash = File.basename(key, ext) + '.' + hash + ext
-
+    # TODO: Document why we do this.
     directory.files.create(
-      :body   => data,
-      :key    => key_with_hash,
+      :key    => file.path_with_hash,
+      :body   => file.body,
       :public => true
     )
-    [key, hash, data.length]
+
+    file
+  end
+
+  def tuf_pending_store
+    @tuf_pending_store ||= Tuf::RedisPendingStore.new($redis)
+  end
+
+  def tuf_store
+    @tuf_store ||= Tuf::S3Store.new(
+      bucket: directory,
+      # TODO: Replace with Rubygems::Tuf::Signer
+      signer: Tuf::InsecureSigner.new('insecure123'),
+    )
   end
 
   def update_index
@@ -74,15 +98,14 @@ class Indexer
     index_files << upload("prerelease_specs.4.8.gz", prerelease_index)
     log "Uploaded prerelease specs index"
 
-    # TODO: Need to keep state between runs, can't regenerate this every time.
-    existing_files = Dir.chdir("server/target") do
-      Dir['{gems/**/*,quick/**/*}'].map do |file|
-        next if File.directory?(file)
-
-        [file, Digest::SHA2.file(file).hexdigest, File.size(file)]
-      end
+    metadata = tuf_store.latest_snapshot
+    metadata.replace_targets(index_files)
+    pending_files = tuf_pending_store.pending
+    pending_files.each do |file|
+      metadata.add_target(file)
     end
-    Tuf.generate_metadata(index_files + existing_files)
+    tuf_store.publish(metadata)
+    tuf_pending_store.clear(pending_files)
   end
 
   def minimize_specs(data)

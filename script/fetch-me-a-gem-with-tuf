@@ -16,27 +16,27 @@ def main
   timestamp = get_metadata 'timestamp.txt'
   verify! timestamp, extract_keys(last_good_root, 'timestamp')
 
-  release = get_metadata("release.txt", timestamp['signed']['meta']['release.txt'])
+  release = get_metadata("release.txt", timestamp['signed']['meta'])
   verify! release, extract_keys(last_good_root, 'release')
 
-  root = get_metadata("root.txt", release['signed']['meta']['root.txt'])
+  root = get_metadata("root.txt", release['signed']['meta'])
   verify! root, extract_keys(last_good_root, "root")
 
   store_file 'root.txt', root
   last_good_root = root
 
-  targets = get_metadata("targets.txt", release['signed']['meta']['targets.txt'])
+  targets = get_metadata("targets.txt", release['signed']['meta'])
   verify! targets, extract_keys(last_good_root, "targets")
 
   gem_name = ARGV[0]
 
-  specs = unmarshal_gz(get_target("latest_specs.4.8.gz", targets))
+  specs = unmarshal_gz(get_target("latest_specs.4.8.gz", targets['signed']['targets']))
 
   gem = specs.detect {|x| x[0] == gem_name } || raise("Can't find gem #{gem}")
 
-  gem_path = "/gems/#{gem[0]}-#{gem[1].to_s}.gem"
+  gem_path = "gems/#{gem[0]}-#{gem[1].to_s}.gem"
 
-  get_target(gem_path, targets)
+  get_target(gem_path, targets['signed']['targets'])
 
   puts "Downloaded #{gem_path}"
 end
@@ -52,12 +52,9 @@ def store_file(path, contents)
   File.write($cache_dir + '/' + path, contents.to_json)
 end
 
-def get_target(path, meta)
-  open($host + '/' + path).read
-end
+def verify_integrity!(path, data, meta)
+  meta = meta[path]
 
-def get_metadata(path, meta = nil)
-  data = open($host + '/metadata/' + path).read
   if meta
     unless meta['length'] == data.length
       raise "Incorrect length for #{path}"
@@ -73,7 +70,23 @@ def get_metadata(path, meta = nil)
 
       raise "Incorrect #{type} digest for #{path}." unless expected == actual
     end
+  else
+    raise "No metadata available"
   end
+end
+
+def get_target(path, meta)
+  data = open($host + '/' + path).read
+
+  verify_integrity! path, data, meta
+
+  data
+end
+
+def get_metadata(path, meta = nil)
+  data = open($host + '/metadata/' + path).read
+
+  verify_integrity! path, data, meta if meta
 
   JSON.parse(data)
 end

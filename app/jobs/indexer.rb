@@ -48,7 +48,7 @@ class Indexer
     data = stringify(value)
     hash = Digest::SHA2.hexdigest(data)
 
-    file = directory.files.create(
+    directory.files.create(
       :body   => data,
       :key    => key,
       :public => true
@@ -57,16 +57,11 @@ class Indexer
     ext = File.extname(key)
     key_with_hash = File.basename(key, ext) + '.' + hash + ext
 
-    file = directory.files.create(
+    directory.files.create(
       :body   => data,
       :key    => key_with_hash,
       :public => true
     )
-    puts key
-    puts key_with_hash
-    puts hash
-    puts Digest::SHA2.hexdigest(File.read('server/target/' + key_with_hash))
-    file
   end
 
   def update_index

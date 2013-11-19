@@ -18,24 +18,24 @@ def main
   timestamp = get_metadata 'timestamp.txt'
   verify! timestamp, extract_keys(last_good_root, 'timestamp')
 
-  release = get_metadata("release.txt", timestamp['signed']['meta'])
+  release = get_hashed_metadata("release.txt", timestamp['signed']['meta'])
   verify! release, extract_keys(last_good_root, 'release')
 
   # TODO: If our release hasn't changed from last known good, don't need to
   # refetch root.txt and targets.txt
 
-  root = get_metadata("root.txt", release['signed']['meta'])
+  root = get_hashed_metadata("root.txt", release['signed']['meta'])
   verify! root, extract_keys(last_good_root, "root")
 
   store_file 'root.txt', root
   last_good_root = root
 
-  targets = get_metadata("targets.txt", release['signed']['meta'])
+  targets = get_hashed_metadata("targets.txt", release['signed']['meta'])
   verify! targets, extract_keys(last_good_root, "targets")
 
   gem_name = ARGV[0]
 
-  specs = unmarshal_gz(get_target("latest_specs.4.8.gz", targets['signed']['targets']))
+  specs = unmarshal_gz(get_hashed_target("latest_specs.4.8.gz", targets['signed']['targets']))
 
   gem = specs.detect {|x| x[0] == gem_name } || raise("Can't find gem #{gem}")
 
@@ -91,10 +91,34 @@ def get_target(path, meta)
   data
 end
 
+def get_hashed_target(path, meta)
+  hash = meta[path]['hashes']['sha256']
+  ext = File.extname(path)
+  full_path = File.basename(path, ext) + '.' + hash + ext
+
+  data = open($host + '/' + full_path).read
+
+  verify_integrity! path, data, meta
+
+  data
+end
+
 def get_metadata(path, meta = nil)
   data = open($host + '/metadata/' + path).read
 
   verify_integrity! path, data, meta if meta
+
+  JSON.parse(data)
+end
+
+def get_hashed_metadata(path, meta)
+  hash = meta[path]['hashes']['sha256']
+  ext = File.extname(path)
+  full_path = File.basename(path, ext) + '.' + hash + ext
+
+  data = open($host + '/metadata/' + full_path).read
+
+  verify_integrity! path, data, meta
 
   JSON.parse(data)
 end

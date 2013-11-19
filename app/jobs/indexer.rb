@@ -45,9 +45,22 @@ class Indexer
   end
 
   def upload(key, value)
+    data = stringify(value)
+    hash = Digest::SHA2.hexdigest(data)
+
+
     file = directory.files.create(
-      :body   => stringify(value),
+      :body   => data,
       :key    => key,
+      :public => true
+    )
+
+    ext = File.extname(key)
+    key_with_hash = File.basename(key, ext) + '.' + hash + ext
+
+    file = directory.files.create(
+      :body   => data,
+      :key    => key_with_hash,
       :public => true
     )
   end

@@ -137,6 +137,21 @@ class Tuf
       end
     end
 
+    FileUtils.mv(
+      "server/metadata/release.txt",
+      "server/metadata/release." + timestamp[:signed][:meta]['release.txt'][:hashes][:sha256] + ".txt"
+    )
+
+    FileUtils.mv(
+      "server/metadata/root.txt",
+      "server/metadata/root." + release[:signed][:meta]['root.txt'][:hashes][:sha256] + ".txt"
+    )
+
+    FileUtils.mv(
+      "server/metadata/targets.txt",
+      "server/metadata/targets." + release[:signed][:meta]['targets.txt'][:hashes][:sha256] + ".txt"
+    )
+
     timestamp_sig = Digest::MD5.hexdigest(timestamp[:signed].to_json)
 
     timestamp[:signatures] = [{

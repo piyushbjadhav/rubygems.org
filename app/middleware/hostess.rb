@@ -13,9 +13,8 @@ class Hostess < Sinatra::Base
   def serve(path = nil)
     path ||= Pusher.server_path(request.path_info)
 
-    puts "serving #{path}"
-
     if self.class.local
+      puts "serving #{path}"
       send_file(path)
     else
       yield
@@ -37,6 +36,9 @@ class Hostess < Sinatra::Base
   %w[/specs.4.8.gz
      /latest_specs.4.8.gz
      /prerelease_specs.4.8.gz
+     /specs.4.8.*.gz
+     /latest_specs.4.8.*.gz
+     /prerelease_specs.4.8.*.gz
   ].each do |index|
     get index do
       content_type('application/x-gzip')

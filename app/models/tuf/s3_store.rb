@@ -2,8 +2,7 @@ module Tuf
   # Implentation of storage for TUF metadata files on S3.
   #
   # TODO: There is a lot of non-S3 logic in here, suggestion another division
-  # of responsibility. Putting an interface infront of bucket.files.create
-  # would be useful elsewhere (such as the Indexer).
+  # of responsibility.
   class S3Store
     def initialize(opts = {})
       @bucket = opts.fetch(:bucket)
@@ -19,7 +18,7 @@ module Tuf
     #
     # TODO: Address the consistency concern above.
     def latest_snapshot
-      timestamp = bucket.files.get("metadata/timestamp.txt")
+      timestamp = bucket.get("metadata/timestamp.txt")
       if timestamp
         # TODO: root.txt
         # TODO: validate signatures
@@ -55,14 +54,14 @@ module Tuf
       )
 
       [targets, releases].each do |file|
-        bucket.files.create(
+        bucket.create(
           key:    file.path_with_hash,
           body:   file.body,
           public: true,
         )
       end
 
-      bucket.files.create(
+      bucket.create(
         key:    timestamp.path,
         body:   timestamp.body,
         public: true,
@@ -80,7 +79,7 @@ module Tuf
     def get_hashed_metadata(path, metadata)
       filespec = ::Tuf::File.from_metadata(path, metadata[path])
 
-      data = bucket.files.get(filespec.path_with_hash).body
+      data = bucket.get(filespec.path_with_hash).body
 
       filespec.attach_body!(data)
     end

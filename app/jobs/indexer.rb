@@ -25,11 +25,12 @@ class Indexer
     ]
 
     files.each do |file|
-      directory.files.create(
-        :key    => file.path,
-        :body   => file.body,
-        :public => true
-      )
+      # These files are stored without their hash in the filename since they
+      # are immutable, so there is no risk of two different versions appearing
+      # in two different snapshots. TUF will still verify the hashes that are
+      # stored in metadata, and legacy clients will be able to find files where
+      # they expect them.
+      file_bucket.create(file.path, file.body)
     end
 
     tuf_pending_store.add(files)
@@ -57,22 +58,16 @@ class Indexer
     final.string
   end
 
-  def upload(key, value)
-    data = stringify(value)
-    file = Tuf::File.from_body(key, data)
+  def upload(path, value)
+    content = stringify(value)
+    file    = Tuf::File.from_body(path, content)
 
-    directory.files.create(
-      :key    => file.path,
-      :body   => file.body,
-      :public => true
-    )
-
-    # TODO: Document why we do this.
-    directory.files.create(
-      :key    => file.path_with_hash,
-      :body   => file.body,
-      :public => true
-    )
+    # The index files are stored with their hash in the path to support the
+    # consistent snapshots provided by TUF.
+    #
+    # A version without the hash is also stored to support legacy clients.
+    file_bucket.create(file.path_with_hash, file.body)
+    file_bucket.create(file.path, file.body)
 
     file
   end
@@ -81,9 +76,13 @@ class Indexer
     @tuf_pending_store ||= Tuf::RedisPendingStore.new($redis)
   end
 
+  def file_bucket
+    @file_bucket ||= PublicFileBucket.new(directory)
+  end
+
   def tuf_store
     @tuf_store ||= Tuf::S3Store.new(
-      bucket: directory,
+      bucket: file_bucket,
       # TODO: Replace with Rubygems::Tuf::Signer
       signer: Tuf::InsecureSigner.new(*online_key),
     )

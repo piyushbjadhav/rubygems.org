@@ -81,7 +81,7 @@ class Indexer
   end
 
   def tuf_store
-    @tuf_store ||= Tuf::S3Store.new(
+    @tuf_store ||= Tuf::MetadataStore.new(
       bucket: file_bucket,
       # TODO: Replace with Rubygems::Tuf::Signer
       signer: Tuf::InsecureSigner.new(*online_key),

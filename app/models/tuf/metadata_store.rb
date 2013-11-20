@@ -1,6 +1,6 @@
 module Tuf
-  # Implentation of storage for TUF metadata files on S3.
-  class S3Store
+  # Implentation of storage for TUF metadata files.
+  class MetadataStore
     def initialize(opts = {})
       @bucket = opts.fetch(:bucket)
       @signer = opts.fetch(:signer)

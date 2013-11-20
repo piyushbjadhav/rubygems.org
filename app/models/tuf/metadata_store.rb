@@ -3,7 +3,11 @@ module Tuf
   class MetadataStore
     def initialize(opts = {})
       @bucket = opts.fetch(:bucket)
+
+      # TODO: This is a little backwards, need to look up the actual key to use
+      # from Root and sign with that. Probably no need to inject this.
       @signer = opts.fetch(:signer)
+      @root   = Root.new(opts.fetch(:root)) # TODO: Use Gem::TUF::Root
     end
 
     # Returns the latest snapshot so that it can be built upon to create a new
@@ -16,18 +20,27 @@ module Tuf
     # TODO: Address the consistency concern above.
     def latest_snapshot
       timestamp = bucket.get("metadata/timestamp.txt")
-      if timestamp
+      targets = if timestamp
         # TODO: root.txt
         # TODO: validate signatures
 
-        timestamp = JSON.parse(timestamp.body)
-        releases = JSON.parse(get_hashed_metadata("metadata/releases.txt", timestamp['signed']['meta']).body)
-        targets  = JSON.parse(get_hashed_metadata("metadata/targets.txt", releases['signed']['meta']).body)
+        signed_timestamp = JSON.parse(timestamp.body)
 
-        Tuf::Metadata.new(targets.fetch('signed'))
+        # TODO: This probably needs to get the threshold from root and use
+        # that. root.unwrap_role maybe?
+        timestamp = signer.unwrap(signed_timestamp, root)
+
+        signed_release = JSON.parse(get_hashed_metadata("metadata/release.txt", timestamp['meta']).body)
+
+        release = signer.unwrap(signed_release, root)
+
+        signed_targets = JSON.parse(get_hashed_metadata("metadata/targets.txt", release['meta']).body)
+        signer.unwrap(signed_targets, root)
       else
-        Tuf::Metadata.new
+        {}
       end
+
+      Tuf::Metadata.new(targets)
     end
 
     # Publishes a new consistent snapshot. The only file that is overwritten is
@@ -35,9 +48,9 @@ module Tuf
     # able to be fetched independent of others. All other files are persisted
     # with their hash added to their filename.
     def publish(metadata)
-      targets   = build_meta 'targets.txt',   metadata.targets
-      releases  = build_meta 'releases.txt',  metadata.releases([targets])
-      timestamp = build_meta 'timestamp.txt', metadata.timestamp([releases])
+      targets   = build_role 'targets',   metadata.targets
+      releases  = build_role 'release',  metadata.releases([targets])
+      timestamp = build_role 'timestamp', metadata.timestamp([releases])
 
       [targets, releases].each do |file|
         bucket.create(file.path_with_hash, file.body)
@@ -51,11 +64,7 @@ module Tuf
 
     private
 
-    attr_reader :bucket, :signer
-
-    def canonical_json(object)
-      JSON.pretty_generate(object) # TODO: Actually use canonical JSON
-    end
+    attr_reader :bucket, :signer, :root
 
     def get_hashed_metadata(path, metadata)
       filespec = ::Tuf::File.from_metadata(path, metadata[path])
@@ -65,8 +74,9 @@ module Tuf
       filespec.attach_body!(data)
     end
 
-    def build_file(path, content)
-      Tuf::File.new 'metadata/' + path, canonical_json(signer.sign(content))
+    def build_role(role, content)
+      Tuf::File.new 'metadata/' + role + '.txt',
+        Tuf::Serialize.canonical(root.sign_role(role, signer, content))
     end
   end
 end

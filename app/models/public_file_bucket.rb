@@ -12,8 +12,12 @@ class PublicFileBucket
       public: true
     )
   end
-  
+
   def get(path)
     directory.files.get(path)
   end
+
+  private
+
+  attr_reader :directory
 end

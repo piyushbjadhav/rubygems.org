@@ -2,8 +2,8 @@ module Tuf
   # Responsible for create and update of "signed" sections inside TUF metadata
   # files.
   class Metadata
-    def initialize(targets = {})
-      @target_files = targets.fetch('targets')
+    def initialize(targets)
+      @target_files = targets.fetch('targets', {})
     end
 
     # For replacing mutable files in targets. Will add if path does not

@@ -82,21 +82,19 @@ class Indexer
 
   def tuf_store
     @tuf_store ||= Tuf::MetadataStore.new(
+      root:   read_with_error(
+        'config/root.txt',
+        "No root.txt available. Run `rake gemcutter:tuf:generate_fake_root` for a fake one"
+      ),
       bucket: file_bucket,
-      # TODO: Replace with Rubygems::Tuf::Signer
-      signer: Tuf::InsecureSigner.new(*online_key),
+      signer: Tuf::Signer,
     )
   end
 
-  def online_key
-    # TODO: Use a real key
-    ['online123', {
-      'keytype' => 'stupid',
-      'keyval' => {
-        'private' => '',
-        'public'  => 'insecure123',
-      }
-    }]
+  def read_with_error(path, msg)
+    File.read(path)
+  rescue
+    raise msg
   end
 
   def update_index

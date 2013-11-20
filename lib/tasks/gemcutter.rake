@@ -1,47 +1,50 @@
 namespace :gemcutter do
-  task generate_tuf_metadata: :environment do
-    Indexer.new.perform
-  end
-
   namespace :tuf do
+    task generate_metadata: :environment do
+      Indexer.new.perform
+    end
+
     task generate_fake_root: :environment do
+      offline_key = Tuf::Key.new(
+        'keytype' => "insecure",
+        'keyval' => {
+          'private' => "",
+          'public' => "insecure-offline",
+        }
+      )
+
+      online_key = Tuf::Key.new(
+        'keytype' => "insecure",
+        'keyval' => {
+          'private' => "",
+          'public' => "insecure-online",
+        }
+      )
+
       root = {
         _type:   "Root",
         ts:      Time.now.utc,
         expires: Time.now.utc + 10000, # TODO: There is a recommend value in pec
         keys: {
-          online: {
-            keytype: "insecure",
-            keyval: {
-              private: "",
-              public: "insecure123",
-            }
-          },
-          offline: {
-            keytype: "insecure",
-            keyval: {
-              private: "",
-              public: "insecure123",
-            }
-          },
+          online_key.id  => online_key.to_hash,
+          offline_key.id => offline_key.to_hash
         },
         roles: {
           # TODO: Once delegated targets are operational, the root
           # targets.txt should use an offline key.
-          root:      {keyids: ["offline"], threshold: 1},
-          timestamp: {keyids: ["online"], threshold: 1},
-          release:   {keyids: ["online"], threshold: 1},
-          targets:   {keyids: ["online"], threshold: 1},
+          root:      {keyids: [offline_key.id], threshold: 1},
+          timestamp: {keyids: [online_key.id], threshold: 1},
+          release:   {keyids: [online_key.id], threshold: 1},
+          targets:   {keyids: [online_key.id], threshold: 1},
         }
       }
 
       root = JSON.parse(root.to_json) # Stringify keys
 
-      key_id = 'offline'
-      path   = "config/root.txt"
-      signer = Tuf::InsecureSigner.new(key_id, root['keys'][key_id])
-      # TODO: Canonical JSON
-      File.write(path, JSON.pretty_generate(signer.sign(root)))
+      path     = "config/root.txt"
+      signer   = Tuf::Signer
+      document = signer.sign(signer.wrap(root), offline_key)
+      File.write(path, Tuf::Serialize.canonical(document))
       File.chmod(0600, path)
     end
   end

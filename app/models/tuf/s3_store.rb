@@ -38,34 +38,18 @@ module Tuf
     # able to be fetched independent of others. All other files are persisted
     # with their hash added to their filename.
     def publish(metadata)
-      targets = Tuf::File.new(
-        'metadata/targets.txt',
-        canonical_json(signer.sign(metadata.targets))
-      )
-
-      releases = Tuf::File.new(
-        'metadata/releases.txt',
-        canonical_json(signer.sign(metadata.releases([targets]))) # TODO: Include root.txt
-      )
-
-      timestamp = Tuf::File.new(
-        'metadata/timestamp.txt',
-        canonical_json(signer.sign(metadata.timestamp([releases])))
-      )
+      targets   = build_meta 'targets.txt',   metadata.targets
+      releases  = build_meta 'releases.txt',  metadata.releases([targets])
+      timestamp = build_meta 'timestamp.txt', metadata.timestamp([releases])
 
       [targets, releases].each do |file|
-        bucket.create(
-          key:    file.path_with_hash,
-          body:   file.body,
-          public: true,
-        )
+        bucket.create(file.path_with_hash, file.body)
       end
 
-      bucket.create(
-        key:    timestamp.path,
-        body:   timestamp.body,
-        public: true,
-      )
+      # Timestamp file does not have a hash in its path, since this is the
+      # first file a client requests and as such there is no way for them to
+      # know what the hash would be.
+      bucket.create(timestamp.path, timestamp.body)
     end
 
     private
@@ -82,6 +66,10 @@ module Tuf
       data = bucket.get(filespec.path_with_hash).body
 
       filespec.attach_body!(data)
+    end
+
+    def build_file(path, content)
+      Tuf::File.new 'metadata/' + path, canonical_json(signer.sign(content))
     end
   end
 end

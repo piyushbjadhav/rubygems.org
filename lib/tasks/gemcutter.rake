@@ -3,6 +3,49 @@ namespace :gemcutter do
     Indexer.new.perform
   end
 
+  namespace :tuf do
+    task generate_fake_root: :environment do
+      root = {
+        _type:   "Root",
+        ts:      Time.now.utc,
+        expires: Time.now.utc + 10000, # TODO: There is a recommend value in pec
+        keys: {
+          online: {
+            keytype: "insecure",
+            keyval: {
+              private: "",
+              public: "insecure123",
+            }
+          },
+          offline: {
+            keytype: "insecure",
+            keyval: {
+              private: "",
+              public: "insecure123",
+            }
+          },
+        },
+        roles: {
+          # TODO: Once delegated targets are operational, the root
+          # targets.txt should use an offline key.
+          root:      {keyids: ["offline"], threshold: 1},
+          timestamp: {keyids: ["online"], threshold: 1},
+          release:   {keyids: ["online"], threshold: 1},
+          targets:   {keyids: ["online"], threshold: 1},
+        }
+      }
+
+      root = JSON.parse(root.to_json) # Stringify keys
+
+      key_id = 'offline'
+      path   = "config/root.txt"
+      signer = Tuf::InsecureSigner.new(key_id, root['keys'][key_id])
+      # TODO: Canonical JSON
+      File.write(path, JSON.pretty_generate(signer.sign(root)))
+      File.chmod(0600, path)
+    end
+  end
+
   namespace :index do
     desc "Update the index"
     task :update => :environment do

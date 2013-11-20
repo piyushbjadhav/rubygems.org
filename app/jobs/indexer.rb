@@ -85,8 +85,19 @@ class Indexer
     @tuf_store ||= Tuf::S3Store.new(
       bucket: directory,
       # TODO: Replace with Rubygems::Tuf::Signer
-      signer: Tuf::InsecureSigner.new('insecure123'),
+      signer: Tuf::InsecureSigner.new(*online_key),
     )
+  end
+
+  def online_key
+    # TODO: Use a real key
+    ['online123', {
+      'keytype' => 'stupid',
+      'keyval' => {
+        'private' => '',
+        'public'  => 'insecure123',
+      }
+    }]
   end
 
   def update_index

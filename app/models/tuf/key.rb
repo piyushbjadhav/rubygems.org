@@ -3,7 +3,7 @@ module Tuf
   class Key
     def initialize(key)
       @key     = key
-      @id      = Digest::SHA256.hexdigest(key.to_json) # TODO: Match with Tony's
+      @id      = Digest::SHA256.hexdigest(Tuf::Serialize.canonical(key))
       @public  = key.fetch('keyval').fetch('public')
       @private = key.fetch('keyval').fetch('private')
       @type    = key.fetch('keytype')

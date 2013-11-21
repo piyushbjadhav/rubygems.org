@@ -49,7 +49,7 @@ module Tuf
     # with their hash added to their filename.
     def publish(metadata)
       targets   = build_role 'targets',   metadata.targets
-      releases  = build_role 'release',  metadata.releases([targets])
+      releases  = build_role 'release',   metadata.releases([targets])
       timestamp = build_role 'timestamp', metadata.timestamp([releases])
 
       [targets, releases].each do |file|

@@ -4,6 +4,33 @@ namespace :gemcutter do
       Indexer.new.perform
     end
 
+    # TODO: DRY this up with Indexer
+    def fog
+      $fog || Fog::Storage.new(
+        :provider => 'Local',
+        :local_root => Pusher.server_path
+      )
+    end
+
+    task bootstrap: :environment do
+      # TODO: Make this configurable
+      # This root needs to have p
+      root = File.read("config/root.txt") rescue "Could not read root.txt"
+
+      # TODO: root signs itself I guess? Figure this out, justify unwrap_unsafe
+      meta = Tuf::Metadata.new(root: Tuf::Root.new(root))
+
+      repository = Tuf::MetadataStore.new(
+        bucket: PublicFileBucket.new(
+          fog.directories.get($rubygems_config[:s3_bucket]) ||
+          fog.directories.create(key: $rubygems_config[:s3_bucket])
+        ),
+        root: root,
+      )
+
+      repository.publish_offline(meta)
+    end
+
     task generate_fake_root: :environment do
       offline_key = Tuf::Key.new(
         'keytype' => "insecure",

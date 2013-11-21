@@ -107,6 +107,8 @@ class Indexer
     log "Uploaded prerelease specs index"
 
     metadata = tuf_store.latest_snapshot
+
+    # For now assume all gems are unclaimed
     metadata.replace_targets(index_files)
     pending_files = tuf_pending_store.pending
     pending_files.each do |file|

@@ -58,16 +58,42 @@ module Tuf
       end
     end
 
+    # Publishes new root, targets, and claimed roles that have been signed by
+    # an offline key. This should only be used in bootstrapping a system or
+    # disaster recovery.
+    def publish_offline(metadata)
+      root    = build_role 'root',    metadata.root.to_hash, metadata.root
+      targets = build_role 'targets', metadata.targets.to_hash, metadata.root
+
+      metadata.replace_release(root)
+      metadata.replace_release(targets)
+
+      [root, targets].each do |file|
+        bucket.create(file.path_with_hash, file.body)
+      end
+
+      publish(metadata)
+    end
+
     # Publishes a new consistent snapshot. The only file that is overwritten is
     # the timestamp, since that is the "root" of the metadata and needs to be
     # able to be fetched independent of others. All other files are persisted
     # with their hash added to their filename.
     def publish(metadata)
-      targets   = build_role 'targets',   metadata.targets
-      releases  = build_role 'release',   metadata.releases([targets])
-      timestamp = build_role 'timestamp', metadata.timestamp([releases])
+      # Unclaimed has changed because we just added a new gem to it
+      unclaimed = build_role 'unclaimed', metadata.unclaimed, metadata.targets
 
-      [targets, releases].each do |file|
+      metadata.replace_release(unclaimed)
+
+      # Releases has changed because it refers to the latest version of uncalimed
+      releases = build_role 'release', metadata.releases
+
+      metadata.snapshot!(releases)
+
+      # Timestamp has changed to refer to the latest release
+      timestamp = build_role 'timestamp', metadata.timestamp
+
+      [releases, unclaimed].each do |file|
         bucket.create(file.path_with_hash, file.body)
       end
 
@@ -89,9 +115,9 @@ module Tuf
       filespec.attach_body!(data)
     end
 
-    def build_role(role, content)
-      Tuf::File.new 'metadata/' + role + '.txt',
-        Tuf::Serialize.canonical(root.sign_role(role, signer, content))
+    def build_role(role, content, owner = root)
+      Tuf::File.new 'metadata/' + owner.path_for(role) + '.txt',
+        Tuf::Serialize.canonical(owner.sign_role(role, signer, content))
     end
   end
 end

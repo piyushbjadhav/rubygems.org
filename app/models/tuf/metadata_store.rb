@@ -23,7 +23,36 @@ module Tuf
     # TODO: This is now a weird name, since this "Repository" always operates
     # on the latest snapshot.
     def latest_snapshot
-      Tuf::Metadata.new(targets)
+      timestamp = bucket.get("metadata/timestamp.txt")
+      targets = if timestamp
+        signed_timestamp = JSON.parse(timestamp)
+        timestamp = root.unwrap_role('timestamp', signed_timestamp)
+
+        # TODO: Verify SHA in timestamp for release matches this file,
+        # otherwise vulnerable to freeze attack.
+        signed_release = JSON.parse(get_hashed_metadata("metadata/release.txt", timestamp['meta']).body)
+        release = root.unwrap_role('release', signed_release)
+
+        # TODO: Verify SHA in timestamp for release matches this file,
+        # otherwise vulnerable to freeze attack.
+        signed_targets = JSON.parse(get_hashed_metadata("metadata/targets.txt", release['meta']).body)
+        targets = root.unwrap_role('targets', signed_targets)
+
+        targets = Targets.new(targets)
+        # TODO: unclaimed should not be special, lazily fetch targets
+#         targets['delegations']['roles'].each do |delegated_role|
+#         end
+        signed_unclaimed = JSON.parse(get_hashed_metadata("metadata/targets/unclaimed.txt", release['meta']).body)
+        unclaimed = targets.unwrap_role('unclaimed', signed_unclaimed)
+
+        pp unclaimed
+        Tuf::Metadata.new(
+          unclaimed: unclaimed,
+          release:   release
+        )
+      else
+        raise "Needs bootstrap"
+      end
     end
 
     def get_hashed_target(path)
@@ -86,14 +115,14 @@ module Tuf
       metadata.replace_release(unclaimed)
 
       # Releases has changed because it refers to the latest version of uncalimed
-      releases = build_role 'release', metadata.releases
+      release = build_role 'release', metadata.release
 
-      metadata.snapshot!(releases)
+      metadata.snapshot!(release)
 
       # Timestamp has changed to refer to the latest release
       timestamp = build_role 'timestamp', metadata.timestamp
 
-      [releases, unclaimed].each do |file|
+      [release, unclaimed].each do |file|
         bucket.create(file.path_with_hash, file.body)
       end
 

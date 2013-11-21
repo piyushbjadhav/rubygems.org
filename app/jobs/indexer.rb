@@ -108,11 +108,11 @@ class Indexer
 
     metadata = tuf_store.latest_snapshot
 
-    # For now assume all gems are unclaimed
-    metadata.replace_targets(index_files)
+    # For now assume all files are unclaimed
+    metadata.replace_unclaimed(index_files)
     pending_files = tuf_pending_store.pending
     pending_files.each do |file|
-      metadata.add_target(file)
+      metadata.add_unclaimed(file)
     end
     tuf_store.publish(metadata)
     tuf_pending_store.clear(pending_files)

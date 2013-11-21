@@ -6,6 +6,8 @@ module Tuf
 
     def initialize(existing)
       @existing = existing
+      @unclaimed = existing[:unclaimed]
+      @release   = existing[:release]
     end
 
     def root
@@ -14,23 +16,24 @@ module Tuf
 
     # For replacing mutable files in targets. Will add if path does not
     # already exist.
-#     def replace_targets(targets)
-#       targets.each do |file|
-#         @target_files[file.path] = file.to_hash
-#       end
-#     end
+    def replace_unclaimed(targets)
+      targets.each do |file|
+        @unclaimed['targets'][file.path] = file.to_hash
+      end
+    end
 
     def replace_release(file)
-      releases['meta'][file.path] = file.to_hash
+      release['meta'][file.path] = file.to_hash
     end
 
     # For adding immutable files to targets. Will raise if path already exists.
-    def add_target(file)
-      if @target_files[file.path]
+    # TODO: Consistent interface with replace_unclaimed
+    def add_unclaimed(file)
+      if @unclaimed['targets'][file.path]
         raise "#{file.path} already exists, not replacing"
       end
 
-      @target_files[file.path] = file.to_hash
+      @unclaimed['targets'][file.path] = file.to_hash
     end
 
     # TODO: How to handle delegated targets?
@@ -61,29 +64,29 @@ module Tuf
     end
 
     def unclaimed
-      {
+      @unclaimed ||= JSON.parse({
         _type:   "Targets",
         expires: clock.now + 1000, # TODO
-        targets: target_files,
+        targets: {},
         version: 2,
-      }
+      }.to_json)
     end
 
-    def snapshot!(releases)
+    def snapshot!(release)
       @timestamp = {
         _type: "Timestamp",
         expires: clock.now + 1000, # TODO
         meta: {
-          releases.path => releases.to_hash
+          release.path => release.to_hash
         },
         version: 2,
       }
     end
 
-    def releases
+    def release
       # TODO: Stringify all of this
-      @releases ||= {
-        _type:   "Releases",
+      @release ||= {
+        _type:   "Release",
         expires: clock.now + 1000, # TODO
         'meta' => {},
         version: 2,

@@ -82,7 +82,7 @@ class Hostess < Sinatra::Base
     end
   end
 
-  get "/metadata/**/*" do
+  get "/metadata/*" do
     serve_via_cf
   end
 

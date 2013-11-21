@@ -11,7 +11,7 @@ module Tuf
     def initialize(path, body)
       @path   = path
       @body   = body
-      @length = body.length
+      @length = body.bytesize
       @hash   = Digest::SHA256.hexdigest(@body)
     end
 
@@ -54,7 +54,7 @@ module Tuf
     def attach_body!(body)
       file = File.from_body(path, body)
 
-      raise "Invalid length for #{path}" unless file.length == length
+      raise "Invalid length for #{path}. Expected #{length}, got #{file.length}" unless file.length == length
       raise "Invalid hash for #{path}" unless file.hash == hash
 
       file

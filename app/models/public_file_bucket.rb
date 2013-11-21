@@ -14,7 +14,7 @@ class PublicFileBucket
   end
 
   def get(path)
-    directory.files.get(path)
+    directory.files.get(path).body
   end
 
   private

@@ -1,12 +1,14 @@
 module Tuf
   # Implentation of storage for TUF metadata files.
+  #
+  # TODO: Should probably be renamed to Repository.
   class MetadataStore
     def initialize(opts = {})
       @bucket = opts.fetch(:bucket)
 
       # TODO: This is a little backwards, need to look up the actual key to use
       # from Root and sign with that. Probably no need to inject this.
-      @signer = opts.fetch(:signer)
+      @signer = opts.fetch(:signer, Tuf::Signer)
       @root   = Root.new(opts.fetch(:root)) # TODO: Use Gem::TUF::Root
     end
 
@@ -18,22 +20,42 @@ module Tuf
     # issues to this approach.
     #
     # TODO: Address the consistency concern above.
+    # TODO: This is now a weird name, since this "Repository" always operates
+    # on the latest snapshot.
     def latest_snapshot
-      timestamp = bucket.get("metadata/timestamp.txt")
-      targets = if timestamp
-        signed_timestamp = JSON.parse(timestamp.body)
-        timestamp = root.unwrap_role('timestamp', signed_timestamp)
-
-        signed_release = JSON.parse(get_hashed_metadata("metadata/release.txt", timestamp['meta']).body)
-        release = root.unwrap_role('release', signed_release)
-
-        signed_targets = JSON.parse(get_hashed_metadata("metadata/targets.txt", release['meta']).body)
-        root.unwrap_role('targets', signed_targets)
-      else
-        {}
-      end
-
       Tuf::Metadata.new(targets)
+    end
+
+    def get_hashed_target(path)
+      file = Tuf::File.from_metadata(path, targets['targets'][path])
+      file.attach_body! bucket.get(file.path_with_hash)
+    end
+
+    def get_target(path)
+      file = Tuf::File.from_metadata(path, targets['targets'][path])
+      file.attach_body! bucket.get(file.path)
+    end
+
+    def targets
+      @targets ||= begin
+        timestamp = bucket.get("metadata/timestamp.txt")
+        targets = if timestamp
+          signed_timestamp = JSON.parse(timestamp)
+          timestamp = root.unwrap_role('timestamp', signed_timestamp)
+
+          # TODO: Verify SHA in timestamp for release matches this file,
+          # otherwise vulnerable to freeze attack.
+          signed_release = JSON.parse(get_hashed_metadata("metadata/release.txt", timestamp['meta']).body)
+          release = root.unwrap_role('release', signed_release)
+
+          # TODO: Verify SHA in timestamp for release matches this file,
+          # otherwise vulnerable to freeze attack.
+          signed_targets = JSON.parse(get_hashed_metadata("metadata/targets.txt", release['meta']).body)
+          root.unwrap_role('targets', signed_targets)
+        else
+          {}
+        end
+      end
     end
 
     # Publishes a new consistent snapshot. The only file that is overwritten is
@@ -62,7 +84,7 @@ module Tuf
     def get_hashed_metadata(path, metadata)
       filespec = ::Tuf::File.from_metadata(path, metadata[path])
 
-      data = bucket.get(filespec.path_with_hash).body
+      data = bucket.get(filespec.path_with_hash)
 
       filespec.attach_body!(data)
     end

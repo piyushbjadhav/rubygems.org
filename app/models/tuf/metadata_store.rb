@@ -21,21 +21,14 @@ module Tuf
     def latest_snapshot
       timestamp = bucket.get("metadata/timestamp.txt")
       targets = if timestamp
-        # TODO: root.txt
-        # TODO: validate signatures
-
         signed_timestamp = JSON.parse(timestamp.body)
-
-        # TODO: This probably needs to get the threshold from root and use
-        # that. root.unwrap_role maybe?
-        timestamp = signer.unwrap(signed_timestamp, root)
+        timestamp = root.unwrap_role('timestamp', signed_timestamp)
 
         signed_release = JSON.parse(get_hashed_metadata("metadata/release.txt", timestamp['meta']).body)
-
-        release = signer.unwrap(signed_release, root)
+        release = root.unwrap_role('release', signed_release)
 
         signed_targets = JSON.parse(get_hashed_metadata("metadata/targets.txt", release['meta']).body)
-        signer.unwrap(signed_targets, root)
+        root.unwrap_role('targets', signed_targets)
       else
         {}
       end

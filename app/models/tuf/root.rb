@@ -14,6 +14,12 @@ module Tuf
       end
     end
 
+    def unwrap_role(role, content)
+      # TODO: get threshold for role rather than requiring all signatures to be
+      # valid.
+      Tuf::Signer.unwrap(content, self)
+    end
+
     def fetch(key_id)
       key(key_id)
     end

@@ -138,10 +138,6 @@ class Pusher
     File.expand_path(File.join(File.dirname(__FILE__), '..', '..', 'server', *more))
   end
 
-  def self.metadata_path(*more)
-    File.expand_path(File.join(File.dirname(__FILE__), '..', '..', 'server', 'metadata', *more))
-  end
-
   def enqueue_web_hook_jobs
     jobs = rubygem.web_hooks + WebHook.global
     jobs.each do |job|

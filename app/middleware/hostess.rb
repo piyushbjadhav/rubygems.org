@@ -10,12 +10,9 @@ class Hostess < Sinatra::Base
     @@local ||= false
   end
 
-  def serve(path = nil)
-    path ||= Pusher.server_path('/target/' + request.path_info)
-
+  def serve
     if self.class.local
-      puts "serving #{path}"
-      send_file(path)
+      send_file Pusher.server_path(request.path_info)
     else
       yield
     end
@@ -27,8 +24,8 @@ class Hostess < Sinatra::Base
     end
   end
 
-  def serve_via_cf(path = nil)
-    serve(path) do
+  def serve_via_cf
+    serve do
       redirect "http://#{$rubygems_config[:cf_domain]}#{request.path_info}"
     end
   end
@@ -85,8 +82,8 @@ class Hostess < Sinatra::Base
     end
   end
 
-  get "/metadata/*" do
-    serve_via_cf Pusher.metadata_path(params[:splat].join)
+  get "/metadata/**/*" do
+    serve_via_cf
   end
 
   get "/gems/*.gem" do

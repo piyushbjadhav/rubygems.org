@@ -45,11 +45,6 @@ def main
     bucket: HttpBucket.new($host)
   )
 
-#   repository = store.latest_snapshot.inspect
-
-#   store_file 'root.txt', root
-#   last_good_root = root
-
   gem_name = ARGV[0]
 
   specs = unmarshal_gz(repository.get_hashed_target("latest_specs.4.8.gz"))

@@ -62,8 +62,28 @@ module Tuf
     end
 
     def get_target(path)
-      file = Tuf::File.from_metadata(path, latest_snapshot.unclaimed['targets'][path])
-      file.attach_body! bucket.get(file.path)
+      find_target path, 'metadata/targets.txt', root
+
+#       file = Tuf::File.from_metadata(path, latest_snapshot.unclaimed['targets'][path])
+#       file.attach_body! bucket.get(file.path)
+    end
+
+    def find_target(path, target_path, parent)
+      puts "Looking for #{path} in #{target_path}"
+
+      if targets.paths[path]
+        file = Tuf::File.from_metadata(path, targets.paths[path])
+        file.attach_body! bucket.get(file.path)
+      else
+        targets.delegations.each do |delegation_spec|
+          # TODO: Fetch from bucket
+          
+          file = find_target(path, delegation)
+          return file if file
+        end
+      end
+
+      raise "Target not found!"
     end
 
     # Publishes new root, targets, and claimed roles that have been signed by
@@ -72,11 +92,13 @@ module Tuf
     def publish_offline(metadata)
       root    = build_role 'root',    metadata.root.to_hash, metadata.root
       targets = build_role 'targets', metadata.targets.to_hash, metadata.root
+      claimed = build_role 'claimed', metadata.claimed, metadata.targets
 
       metadata.replace_release(root)
       metadata.replace_release(targets)
+      metadata.replace_release(claimed)
 
-      [root, targets].each do |file|
+      [root, targets, claimed].each do |file|
         bucket.create(file.path_with_hash, file.body)
       end
 
@@ -89,9 +111,11 @@ module Tuf
     # with their hash added to their filename.
     def publish(metadata)
       # Unclaimed has changed because we just added a new gem to it
-      unclaimed = build_role 'unclaimed', metadata.unclaimed, metadata.targets
+      unclaimed        = build_role 'unclaimed', metadata.unclaimed, metadata.targets
+      recently_claimed = build_role 'recently-claimed', metadata.recently_claimed, metadata.targets
 
       metadata.replace_release(unclaimed)
+      metadata.replace_release(recently_claimed)
 
       # Releases has changed because it refers to the latest version of uncalimed
       release = build_role 'release', metadata.release
@@ -101,7 +125,7 @@ module Tuf
       # Timestamp has changed to refer to the latest release
       timestamp = build_role 'timestamp', metadata.timestamp
 
-      [release, unclaimed].each do |file|
+      [release, recently_claimed, unclaimed].each do |file|
         bucket.create(file.path_with_hash, file.body)
       end
 

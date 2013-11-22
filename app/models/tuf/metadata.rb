@@ -38,11 +38,18 @@ module Tuf
 
     # TODO: How to handle delegated targets?
     def targets
-      unclaimed_key = Tuf::Key.new(
+      online_key = Tuf::Key.new(
         'keytype' => "insecure",
         'keyval' => {
           'private' => "",
           'public' => "insecure-unclamied",
+        }
+      )
+      offline_key = Tuf::Key.new(
+        'keytype' => "insecure",
+        'keyval' => {
+          'private' => "",
+          'public' => "insecure-clamied",
         }
       )
       @targets ||= Targets.new(JSON.parse({
@@ -52,11 +59,20 @@ module Tuf
         version: 2,
         delegations: {
           keys: {
-            unclaimed_key.id => unclaimed_key.to_hash
+            online_key.id  => online_key.to_hash,
+            offline_key.id => offline_key.to_hash
           }, # TODO
           roles: [{
+            name: 'claimed',
+            keyids: [offline_key.id],
+            threshold: 1, # TODO: More than 1
+          }, {
+            name: 'recently-claimed',
+            keyids: [online_key.id],
+            threshold: 1,
+          }, {
             name: 'unclaimed',
-            keyids: [unclaimed_key.id],
+            keyids: [online_key.id],
             threshold: 1,
           }]
         }
@@ -65,6 +81,24 @@ module Tuf
 
     def unclaimed
       @unclaimed ||= JSON.parse({
+        _type:   "Targets",
+        expires: clock.now + 1000, # TODO
+        targets: {},
+        version: 2,
+      }.to_json)
+    end
+
+    def recently_claimed
+      @recently_claimed ||= JSON.parse({
+        _type:   "Targets",
+        expires: clock.now + 1000, # TODO
+        targets: {},
+        version: 2,
+      }.to_json)
+    end
+
+    def claimed
+      @claimed ||= JSON.parse({
         _type:   "Targets",
         expires: clock.now + 1000, # TODO
         targets: {},

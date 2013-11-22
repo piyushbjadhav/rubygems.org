@@ -67,12 +67,24 @@ module Tuf
       @target
     end
 
+    def files
+      @target.fetch('targets')
+    end
+
+    def delegated_roles
+      @root.fetch('roles', [])
+    end
+
     def fetch(key_id)
       key(key_id)
     end
 
     def path_for(role)
       "targets/#{role}"
+    end
+
+    def delegations
+      @root['roles']
     end
 
     private

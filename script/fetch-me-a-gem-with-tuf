@@ -9,54 +9,40 @@ require 'tuf/key'
 require 'tuf/metadata_store'
 require 'tuf/file'
 require 'tuf/metadata'
+require 'tuf/repository'
 
 require 'pp'
 require 'open-uri'
 require 'json'
 require 'digest/md5'
 require 'digest/sha2'
+require 'zlib'
 
 $host = 'http://localhost:3000'
 $cache_dir = '/tmp'
 
-class HttpBucket
-  def initialize(host)
-  end
-
-  def get(path)
-    open($host + '/' + path).read
-  end
-
-  def create(*)
-    raise "Not supported, this is a read-only bucket."
-  end
-end
-
 # Proof-of-concept implementation of remote file fetching with TUF.
 def main
-  # TODO: Check for expiry across all metadata files.
-
   last_good_root = from_file($cache_dir + '/root.txt') ||
-                     from_file('config/root.txt') ||
-                     raise("Can't find root.txt")
+                   from_file('config/root.txt') ||
+                   raise("Can't find root.txt")
 
-  repository = store = Tuf::MetadataStore.new(
+  repository = Tuf::Repository.new(
     root:   last_good_root,
-    bucket: HttpBucket.new($host)
+    bucket: FileCachingBucket.new(HttpBucket.new($host))
   )
 
-  gem_name = ARGV[0]
+  gem_name = ARGV.shift
 
-  specs = unmarshal_gz(repository.get_hashed_target("latest_specs.4.8.gz"))
-
+  specs = unmarshal_gz repository.target('latest_specs.4.8.gz')
   gem = specs.detect {|x| x[0] == gem_name } || raise("Can't find gem #{gem}")
 
   gem_with_version = "#{gem[0]}-#{gem[1]}"
   gem_path         = "gems/#{gem_with_version}.gem"
   gemspec_path     = "quick/Marshal.4.8/#{gem_with_version}.gemspec.rz"
 
-  repository.get_target(gemspec_path)
-  repository.get_target(gem_path)
+  repository.target(gemspec_path)
+  repository.target(gem_path)
 
   puts "Downloaded #{gem_path} and #{gemspec_path}"
 end
@@ -67,75 +53,50 @@ def from_file(path)
   end
 end
 
-def store_file(path, contents)
-  File.write($cache_dir + '/' + path, contents.to_json)
-end
-
-def get_target(path, meta)
-  data = open($host + '/' + path).read
-
-  verify_integrity! path, data, meta
-
-  data
-end
-
-def get_hashed_target(path, meta)
-  hash = meta[path]['hashes']['sha256']
-  ext = File.extname(path)
-  full_path = File.basename(path, ext) + '.' + hash + ext
-
-  data = open($host + '/' + full_path).read
-
-  verify_integrity! path, data, meta
-
-  data
-end
-
-def get_metadata(path, meta = nil)
-  data = open($host + '/metadata/' + path).read
-
-  verify_integrity! path, data, meta if meta
-
-  JSON.parse(data)
-end
-
-def get_hashed_metadata(path, meta)
-  hash = meta[path]['hashes']['sha256']
-  ext = File.extname(path)
-  full_path = File.basename(path, ext) + '.' + hash + ext
-
-  data = open($host + '/metadata/' + full_path).read
-
-  verify_integrity! path, data, meta
-
-  JSON.parse(data)
-end
-
-def verify!(file, keys)
-  keys.each do |key_id, key|
-    expected = file['signatures'].detect {|x| x['keyid'] == key_id } ||
-      raise("No key found for key #{key_id}")
-
-    actual = case key['keytype']
-    when 'md5lol'
-      Digest::MD5.hexdigest(file['signed'].to_json)
-    else
-      raise "unknown keytype: #{key['keytype']}"
-    end
-    actual == expected
-  end
-end
-
-def extract_keys(root, role)
-  key_ids = root["signed"]["roles"][role]["keyids"]
-  keys = key_ids.each_with_object({}) do |key_id, keys|
-    keys[key_id] = root["signed"]["keys"][key_id]
-  end
-end
-
 def unmarshal_gz(content)
   # ....
   Marshal.load(Zlib::GzipReader.new(StringIO.new(content.body)).read)
+end
+
+class HttpBucket
+  def initialize(host)
+  end
+
+  def get(path, opts = {})
+    open($host + '/' + path).read
+  end
+
+  def create(*)
+    raise "Not supported, this is a read-only bucket."
+  end
+end
+
+class FileCachingBucket
+  def initialize(bucket, dir = "/tmp/tuf-cache/")
+    @bucket = bucket
+    FileUtils.mkdir_p(dir)
+    @dir = dir
+  end
+
+  def get(path, opts = {})
+    cache_key = opts.fetch(:cache_key, path)
+    full_path = dir + cache_key
+
+    if ::File.exists?(full_path) && opts[:cache] != false
+      puts "cache hit: #{cache_key}"
+      ::File.read(full_path)
+    else
+      puts "cache miss: #{cache_key}"
+      bucket.get(path).tap do |content|
+        FileUtils.mkdir_p(::File.dirname(full_path))
+        ::File.write full_path, content
+      end
+    end
+  end
+
+  private
+
+  attr_reader :dir, :bucket
 end
 
 main

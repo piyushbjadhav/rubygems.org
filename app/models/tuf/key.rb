@@ -1,6 +1,19 @@
+require 'tuf/serialize'
+require 'digest/sha2'
+
 module Tuf
+
   # Value object for working with TUF key hashes.
   class Key
+
+    # Convenience method for programatically building keys.
+    def self.build(type, private, public)
+      new Tuf::Serialize.roundtrip(
+        'keytype' => type,
+        'keyval' => {'private' => private, 'public' => public}
+      )
+    end
+
     def initialize(key)
       @key     = key
       @id      = Digest::SHA256.hexdigest(Tuf::Serialize.canonical(key))

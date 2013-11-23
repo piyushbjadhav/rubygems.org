@@ -81,13 +81,13 @@ class Indexer
   end
 
   def tuf_store
+    # TODO: Replace with Tuf::Repository. Needs online key.
     @tuf_store ||= Tuf::MetadataStore.new(
       root:   read_with_error(
         'config/root.txt',
         "No root.txt available. Run `rake gemcutter:tuf:generate_fake_root` for a fake one"
       ),
       bucket: file_bucket,
-      signer: Tuf::Signer,
     )
   end
 

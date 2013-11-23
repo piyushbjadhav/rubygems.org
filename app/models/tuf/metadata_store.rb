@@ -119,6 +119,7 @@ module Tuf
 
       # Releases has changed because it refers to the latest version of uncalimed
       release = build_role 'release', metadata.release
+      release = build_role 'release', metadata.release
 
       metadata.snapshot!(release)
 

@@ -1,10 +1,17 @@
 require 'fileutils'
 
+require 'tuf/role'
+require 'tuf/signer'
+
 module Tuf
+
+  # A read-only view of a TUF repository.
   class Repository
     def initialize(opts)
-      @bucket = opts.fetch(:bucket)
-      @root   = Root.new(opts.fetch(:root))
+      @bucket      = opts.fetch(:bucket)
+      @signed_root = opts.fetch(:root)
+      # TODO: Document, actually verify
+      @root   = Tuf::Role::Root.new(Tuf::Signer.unwrap_unsafe(@signed_root))
     end
 
     def target(path)
@@ -16,7 +23,11 @@ module Tuf
       end
     end
 
-    private
+    def role(path)
+      bucket.get('metadata/' + path + '.txt')
+    end
+
+    protected
 
     def release
       @release ||= begin
@@ -30,14 +41,14 @@ module Tuf
     def timestamp
       @timestamp ||= begin
         signed_file = JSON.parse(bucket.get("metadata/timestamp.txt", cache: false))
-        
+
         # TODO: Check expiry
         Role::Timestamp.new(root.unwrap_role('timestamp', signed_file), @bucket)
       end
     end
 
     def find_metadata(path, role, parent)
-      targets = Targets.new(release.fetch_role(role, parent))
+      targets = Tuf::Role::Targets.new(release.fetch_role(role, parent))
 
       if targets.files[path]
         targets.files[path]
@@ -50,39 +61,7 @@ module Tuf
       end
     end
 
-    attr_reader :bucket, :root
+    attr_reader :bucket, :root, :signed_root
 
-    module Role
-      class Metadata
-        def initialize(source, bucket)
-          @role_metadata = source['meta']
-          @bucket = bucket
-        end
-
-        def fetch_role(role, parent)
-          path = "metadata/" + parent.path_for(role) + ".txt"
-
-          metadata = role_metadata.fetch(path) {
-            raise "Could not find #{path} in: #{role_metadata.keys.sort.join("\n")}"
-          }
-
-          filespec = ::Tuf::File.from_metadata(path, role_metadata[path])
-
-          data = bucket.get(filespec.path_with_hash)
-
-          signed_file = filespec.attach_body!(data)
-
-          parent.unwrap_role(role, JSON.parse(signed_file.body))
-        end
-
-        attr_reader :role_metadata, :bucket
-      end
-
-      class Timestamp < Metadata
-      end
-
-      class Release < Metadata
-      end
-    end
   end
 end

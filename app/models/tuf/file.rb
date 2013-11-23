@@ -1,3 +1,5 @@
+require 'digest/sha2'
+
 module Tuf
   class File
     def self.from_body(path, body)
@@ -17,8 +19,8 @@ module Tuf
 
     def to_hash
       {
-        hashes: { sha256: @hash },
-        length: @length,
+        'hashes' => { 'sha256' => @hash },
+        'length' => @length,
       }
     end
 

@@ -13,6 +13,8 @@ namespace :gemcutter do
     end
 
     task bootstrap: :environment do
+      raise "This is broken. Needs to re-use bootstrap example from integration test."
+
       # TODO: Make this configurable
       # This root needs to have p
       root = File.read("config/root.txt") rescue "Could not read root.txt"

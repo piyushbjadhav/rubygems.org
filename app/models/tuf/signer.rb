@@ -3,18 +3,31 @@ require 'json'
 module Tuf
   class Signer
     class << self
+      # Return the wrapped document inside a new signing envelope that contains
+      # all signatures from the previous one, plus a new signature from the
+      # given key.
+      #
+      # TODO: handle signing with the same key twice.
       def sign(wrapped_document, key)
-        to_sign = Tuf::Serialize.canonical(wrapped_document.fetch('signed'))
+        unwrapped = wrapped_document.fetch('signed') {
+          raise "The given document is not wrapped in a signing envelope"
+        }
+
+        to_sign = Tuf::Serialize.canonical(unwrapped)
 
         signed = wrapped_document.dup
         signed['signatures'] << {
-          keyid:  key.id,
-          method: key.type,
-          sig:    key.sign(to_sign)
+          'keyid'  => key.id,
+          'method' => key.type,
+          'sig'    => key.sign(to_sign)
         }
         signed
       end
 
+      # Wrap a document in an empty signing envelope. Multiple signatures can
+      # be added to this envelope using the .sign method.
+      #
+      # TODO: Support `as_json` method to avoid calling `to_hash` everywhere.
       def wrap(to_sign)
         {
           'signatures' => [],
@@ -22,6 +35,13 @@ module Tuf
         }
       end
 
+      def sign_unwrapped(to_sign, key)
+        sign(wrap(to_sign), key)
+      end
+
+      # Verify signatures on a document and return the signed portion.
+      #
+      # TODO: Support threshold parameter.
       def unwrap(signed_document, keystore)
         verify!(signed_document, keystore)
         unwrap_unsafe(signed_document)
@@ -34,7 +54,9 @@ module Tuf
       # All external uses of this method MUST have explicit documentation
       # justifying that use.
       def unwrap_unsafe(signed_document)
-        signed_document.fetch('signed')
+        signed_document.fetch('signed') {
+          raise "The given document is not wrapped in a signing envelope"
+        }
       end
 
       private

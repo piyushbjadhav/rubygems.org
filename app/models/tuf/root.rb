@@ -1,3 +1,6 @@
+require 'tuf/key'
+require 'tuf/signer'
+
 module Tuf
   # TODO: Justify this class' existence.
   # Maybe it's actually a Keystore? Owner?
@@ -5,12 +8,23 @@ module Tuf
     def initialize(content)
       # TODO: Justify use of unwrap_unsafe by documenting how this file is
       # verified.
+      @body = content
       @root = Tuf::Signer.unwrap_unsafe(JSON.parse(content))
     end
 
-    def sign_role(role, signer, content)
-      role_info = root['roles'][role]
+    def sign_role(role, content)
+      signer    = Tuf::Signer
+      roles     = root.fetch('roles')
+      role_info = roles.fetch(role) {
+        raise "%s role not found. Available roles: %s" % [
+          role,
+          roles.keys.sort.join(", ")
+        ]
+      }
+
       role_info['keyids'].inject(signer.wrap(content)) do |content, key_id|
+        puts key_id
+        puts key(key_id).id
         signer.sign(content, key(key_id))
       end
     end
@@ -21,8 +35,8 @@ module Tuf
       Tuf::Signer.unwrap(content, self)
     end
 
-    def to_hash
-      @root
+    def body
+      @body
     end
 
     def path_for(role)
@@ -38,7 +52,7 @@ module Tuf
     attr_reader :root
 
     def key(key_id)
-      Tuf::Key.new(root['keys'].fetch(key_id))
+      Tuf::Key.new(root.fetch('keys').fetch(key_id))
     end
   end
 
@@ -80,7 +94,7 @@ module Tuf
     end
 
     def path_for(role)
-      "targets/#{role}"
+      role
     end
 
     def delegations
@@ -92,7 +106,7 @@ module Tuf
     attr_reader :root
 
     def key(key_id)
-      Tuf::Key.new(root['keys'].fetch(key_id))
+      Tuf::Key.new(root.fetch('keys').fetch(key_id))
     end
   end
 end

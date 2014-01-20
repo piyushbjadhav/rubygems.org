@@ -29,4 +29,5 @@ signed_files = {
   'targets/claimed' => JSON.parse(File.read(indir + '/claimed.txt'))
 }
 
+File.write 'config/root.txt', Tuf::Serialize.canonical(signed_files['root'])
 Tuf::Gemcutter.new.bootstrap!(bucket, key, signed_files)

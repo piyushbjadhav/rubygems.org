@@ -39,7 +39,9 @@ module Tuf
       end
 
       def add_file(file)
-        raise "File already exists." if @target['targets'][file.path]
+        if @target['targets'][file.path]
+          raise "File already exists: #{file.path}."
+        end
 
         replace_file(file)
       end

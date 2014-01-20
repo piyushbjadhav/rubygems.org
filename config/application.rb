@@ -1,6 +1,7 @@
 # TODO: Remove this before merging to master, after rubygems changes have
 # shipped.
 $LOAD_PATH.unshift(File.expand_path('../../../rubygems/lib', __FILE__))
+require 'rubygems'
 
 begin
   require 'openssl'

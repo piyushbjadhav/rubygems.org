@@ -3,7 +3,7 @@ require 'minitest/autorun'
 
 require 'json'
 
-require 'tuf/online_repository'
+require 'rubygems/tuf'
 
 class TufRepositoryTest < MiniTest::Unit::TestCase
   T = Gem::TUF

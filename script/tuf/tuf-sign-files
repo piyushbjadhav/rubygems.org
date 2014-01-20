@@ -9,7 +9,7 @@ private_file = ARGV.shift
 public_file  = ARGV.shift
 to_sign      = ARGV
 
-key = Tuf::Key.build('rsa', File.read(private_file), File.read(public_file))
+key = Gem::TUF::Key.build('rsa', File.read(private_file), File.read(public_file))
 tuf = Tuf::Gemcutter.new
 
 to_sign.each do |path|

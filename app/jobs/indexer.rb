@@ -6,7 +6,7 @@ class Indexer
   end
 
   def write_gem(body, spec)
-    gem_file = Tuf::File.from_body(
+    gem_file = Gem::TUF::File.from_body(
       "gems/#{spec.original_name}.gem",
       body.string
     )
@@ -14,7 +14,7 @@ class Indexer
     self.class.indexer.abbreviate spec
     self.class.indexer.sanitize spec
 
-    gem_spec = Tuf::File.from_body(
+    gem_spec = Gem::TUF::File.from_body(
       "quick/Marshal.4.8/#{spec.original_name}.gemspec.rz",
       Gem.deflate(Marshal.dump(spec))
     )
@@ -60,7 +60,7 @@ class Indexer
 
   def upload(path, value)
     content = stringify(value)
-    file    = Tuf::File.from_body(path, content)
+    file    = Gem::TUF::File.from_body(path, content)
 
     # The index files are stored with their hash in the path to support the
     # consistent snapshots provided by TUF.
@@ -84,7 +84,7 @@ class Indexer
     @tuf_repo ||= Tuf::OnlineRepository.new(
       root:   JSON.parse(read_with_error('config/root.txt', "No root.txt available.")),
       bucket: file_bucket,
-      online_key: Tuf::Key.build('rsa',
+      online_key: Gem::TUF::Key.build('rsa',
         File.read('config/keys/online-private.pem'),
         File.read('config/keys/online-public.pem')
       )

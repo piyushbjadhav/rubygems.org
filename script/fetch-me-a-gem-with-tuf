@@ -5,6 +5,7 @@
 $LOAD_PATH.unshift(File.expand_path('../../../rubygems/lib', __FILE__))
 
 begin
+  require 'rubygems'
   require 'openssl'
   require 'rubygems/tuf'
 rescue LoadError
@@ -16,8 +17,6 @@ is required for secure operation.
 end
 
 $LOAD_PATH.unshift 'app/models'
-
-require 'tuf/repository'
 
 require 'pp'
 require 'open-uri'
@@ -35,7 +34,7 @@ def main
                    from_file('config/root.txt') ||
                    raise("Can't find root.txt")
 
-  repository = Tuf::Repository.new(
+  repository = Gem::TUF::Repository.new(
     root:   JSON.parse(last_good_root),
     bucket: FileCachingBucket.new(HttpBucket.new($host))
   )

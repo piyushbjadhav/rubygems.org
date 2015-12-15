@@ -33,7 +33,7 @@ def main
   last_good_root = from_file($cache_dir + '/root.txt') ||
                    from_file('config/root.txt') ||
                    raise("Can't find root.txt")
-
+  puts "Found root.txt  "
   repository = Gem::TUF::Repository.new(
     root:   JSON.parse(last_good_root),
     bucket: FileCachingBucket.new(HttpBucket.new($host))
@@ -44,8 +44,8 @@ def main
   specs = repository.target('latest_specs.4.8.gz')
   raise "could not find latest_specs.4.8.gz" unless specs
   specs = unmarshal_gz specs
-  gem = specs.detect {|x| x[0] == gem_name } || raise("Can't find gem #{gem}")
-
+  gem = specs.detect {|x| x[0] == gem_name } || raise( "Can't find gem #{gem}" )
+  puts "Gem Detected"
   gem_with_version = "#{gem[0]}-#{gem[1]}"
   gem_path         = "gems/#{gem_with_version}.gem"
   gemspec_path     = "quick/Marshal.4.8/#{gem_with_version}.gemspec.rz"

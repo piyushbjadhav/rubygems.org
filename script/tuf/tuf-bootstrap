@@ -4,7 +4,7 @@ require_relative '../../config/boot'
 require_relative '../../config/environment'
 
 require 'tuf/gemcutter'
-
+require 'tuf/key'
 private_file = ARGV.shift
 public_file  = ARGV.shift
 indir        = ARGV.shift

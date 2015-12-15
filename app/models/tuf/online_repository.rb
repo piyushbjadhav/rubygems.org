@@ -56,6 +56,7 @@ module Tuf
       release_file = build_role 'release', release
 
       timestamp = Gem::TUF::Role::Timestamp.empty
+      
       timestamp.replace(release_file)
       timestamp_file = build_role 'timestamp', timestamp
 
@@ -92,9 +93,9 @@ module Tuf
       release_file = build_role 'release', release
 
       timestamp.replace(release_file)
+      #timestamp.add_timestamp()
 
       timestamp_file = build_role 'timestamp', timestamp
-
       bucket.create(release_file.path_with_hash, release_file.body)
       bucket.create(timestamp_file.path, timestamp_file.body)
     end
@@ -104,6 +105,7 @@ module Tuf
     attr_accessor :online_key
 
     def build_role(role, object)
+
       release_file = Gem::TUF::File.new 'metadata/' + role + '.txt',
         Gem::TUF::Serialize.canonical(root.sign_role(role, object.to_hash, online_key))
     end

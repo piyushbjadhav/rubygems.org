@@ -1,0 +1,29 @@
+#!/usr/bin/env ruby
+
+# TODO: Remove this before merging to master, after rubygems changes have
+# shipped.
+$LOAD_PATH.unshift(File.expand_path('../../../../rubygems/lib', __FILE__))
+
+begin
+  require 'rubygems'
+  require 'openssl'
+  require 'rubygems/tuf'
+  require 'time'
+rescue LoadError
+  $stderr.puts <<-EOS
+Your version of rubygems is too old, it does not include rubygems/tuf which
+is required for secure operation.
+  EOS
+  exit 1
+end
+
+file = File.read('../../server/metadata/timestamp.txt')
+timestamp = JSON.parse(file)
+private_key  = File.read('../../config/keys/online-private.pem')
+public_key  = File.read('../../config/keys/online-public.pem')
+timestamp['signatures'] = []
+key = Gem::TUF::Key.build('rsa',private_key,public_key)
+signed_timestamp= Gem::TUF::Signer.sign(timestamp,key)
+File.write('../../server/metadata/timestamp1.txt',JSON.pretty_generate(signed_timestamp))
+
+
